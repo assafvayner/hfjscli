@@ -30,7 +30,7 @@ function runCLI(
     let stdout = "";
     let stderr = "";
 
-    const timeout = options?.timeout || 10000; // 10 second default timeout
+    const timeout = options?.timeout || 4000; // 4 second default timeout
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error(`CLI command timed out after ${timeout}ms`));
