@@ -1,0 +1,29 @@
+# Development files
+src/
+tests/
+coverage/
+.kiro/
+
+# Configuration files
+tsconfig.json
+jest.config.js
+.gitignore
+
+# Development dependencies
+node_modules/
+*.log
+*.tgz
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+*.test.ts
+*.spec.ts
