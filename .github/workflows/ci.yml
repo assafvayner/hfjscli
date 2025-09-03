@@ -60,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build project (for integration tests)
+        run: npm run build
+
       - name: Run tests
         run: npm test
 
