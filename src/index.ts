@@ -13,6 +13,7 @@ import { DownloadCommand } from "./commands/download";
 import { Logger } from "./utils/logger";
 import { ErrorHandler } from "./utils/errors";
 import { authManager } from "./auth/manager";
+import { version } from "../package.json";
 
 /**
  * Main CLI application class
@@ -36,7 +37,7 @@ class HFJSCli {
       .description(
         "A command-line interface for uploading and downloading files from Hugging Face Hub"
       )
-      .version("1.0.0", "-v, --version", "Display version number")
+      .version(version, "-v, --version", "Display version number")
       .helpOption("-h, --help", "Display help for command")
       .addHelpText(
         "after",

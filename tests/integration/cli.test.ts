@@ -7,6 +7,7 @@ import { spawn } from "child_process";
 import * as path from "path";
 import * as fs from "fs-extra";
 import * as os from "os";
+import { version } from "../../package.json";
 
 const CLI_PATH = path.join(__dirname, "../../dist/index.js");
 
@@ -102,14 +103,14 @@ describe("CLI Entry Point - Comprehensive Integration Tests", () => {
       const result = await runCLI(["--version"]);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe("1.0.0");
+      expect(result.stdout.trim()).toBe(version);
     });
 
     it("should display version when -v flag is used", async () => {
       const result = await runCLI(["-v"]);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe("1.0.0");
+      expect(result.stdout.trim()).toBe(version);
     });
   });
 
