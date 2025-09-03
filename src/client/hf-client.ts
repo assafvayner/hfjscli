@@ -25,9 +25,9 @@ import * as path from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { authManager } from "../auth/manager";
+import { Response } from "undici";
 import { Blob } from "node:buffer";
 import { ReadableStream } from "node:stream/web";
-import { Response } from "undici-types";
 
 /**
  * Configuration for retry logic
@@ -479,11 +479,10 @@ export class HFClient implements HFClientWrapper {
     message: string,
     suggestion?: string
   ): CLIError {
-    const error = new Error(message);
     return {
       type,
       suggestions: suggestion ? [suggestion] : [],
-      ...error,
+      message: message,
     };
   }
 }

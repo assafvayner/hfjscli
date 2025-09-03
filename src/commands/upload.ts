@@ -23,8 +23,8 @@ import { ErrorHandler } from "../utils/errors";
 interface UploadCommandOptions {
   token?: string;
   message?: string;
-  repoType: string;
-  verbose: boolean;
+  repoType?: string;
+  verbose?: boolean;
 }
 
 /**
@@ -295,7 +295,7 @@ export class UploadCommand extends BaseCommand {
   /**
    * Validate and normalize repository type
    */
-  private validateRepoType(repoType: string): RepoType {
+  private validateRepoType(repoType?: string): RepoType {
     const validTypes: RepoType[] = ["model", "dataset", "space"];
 
     if (!repoType) {

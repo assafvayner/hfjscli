@@ -367,7 +367,7 @@ describe("HFClient", () => {
       expect(isValid).toBe(true);
       expect(mockListFiles).toHaveBeenCalledWith({
         repo: { name: "test-user/test-repo", type: "model" },
-        credentials: { accessToken: "test-token" },
+        accessToken: "test-token",
       });
     });
 
@@ -393,7 +393,7 @@ describe("HFClient", () => {
           name: "test-user/test-dataset",
           type: "dataset",
         },
-        credentials: { accessToken: "test-token" },
+        accessToken: "test-token",
       });
     });
   });

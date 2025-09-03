@@ -6,7 +6,6 @@
   "bin": {
     "hfjscli": "./dist/index.js"
   },
-  "type": "module",
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
     "build:watch": "tsc --watch",
@@ -39,7 +38,8 @@
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.2.0",
-    "ora": "^5.4.1"
+    "ora": "^5.4.1",
+    "undici": "^7.15.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",

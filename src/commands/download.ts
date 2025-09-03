@@ -22,10 +22,10 @@ import { StatusMessages } from "../utils/progress";
 import { ErrorHandler } from "../utils/errors";
 
 interface DownloadCommandOptions {
-  verbose: boolean;
+  verbose?: boolean;
   token?: string;
   localDir?: string;
-  repoType: string;
+  repoType?: string;
 }
 
 /**
@@ -80,7 +80,7 @@ export class DownloadCommand extends BaseCommand {
   ): Promise<void> {
     // Set verbose mode (inherits from global if not specified)
     const verbose = options.verbose;
-    this.setVerbose(verbose);
+    this.setVerbose(verbose || false);
 
     // Merge global token with command-specific token (command-specific takes precedence)
     if (options.token) {
@@ -330,7 +330,7 @@ export class DownloadCommand extends BaseCommand {
   /**
    * Validate and normalize repository type
    */
-  private validateRepoType(repoType: string): RepoType {
+  private validateRepoType(repoType?: string): RepoType {
     const validTypes: RepoType[] = ["model", "dataset", "space"];
 
     if (!repoType) {

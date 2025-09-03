@@ -52,8 +52,7 @@ describe("ProgressIndicator", () => {
 
       expect(Logger.startProgress).toHaveBeenCalledWith(
         "test-id",
-        "Uploading test.txt...",
-        expect.any(String)
+        "Uploading test.txt..."
       );
     });
 
