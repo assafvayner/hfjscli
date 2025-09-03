@@ -81,12 +81,12 @@ export class Logger {
     Logger.currentLogLevel = level;
   }
 
-    /**
+  /**
    * Set the log level to default
    */
-    static setToDefault(): void {
-      Logger.currentLogLevel = DEFAULT_LOG_LEVEL;
-    }
+  static setToDefault(): void {
+    Logger.currentLogLevel = DEFAULT_LOG_LEVEL;
+  }
 
   /**
    * Enable or disable verbose mode
@@ -114,7 +114,7 @@ export class Logger {
   static error(
     message: string,
     details?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): void {
     Logger.log(LogLevel.ERROR, message, details, context);
   }
@@ -125,7 +125,7 @@ export class Logger {
   static warn(
     message: string,
     details?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): void {
     Logger.log(LogLevel.WARN, message, details, context);
   }
@@ -136,7 +136,7 @@ export class Logger {
   static info(
     message: string,
     details?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): void {
     Logger.log(LogLevel.INFO, message, details, context);
   }
@@ -147,7 +147,7 @@ export class Logger {
   static verbose(
     message: string,
     details?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): void {
     Logger.log(LogLevel.VERBOSE, message, details, context);
   }
@@ -158,7 +158,7 @@ export class Logger {
   static debug(
     message: string,
     details?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): void {
     Logger.log(LogLevel.DEBUG, message, details, context);
   }
@@ -180,7 +180,7 @@ export class Logger {
     level: LogLevel,
     message: string,
     details?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): void {
     if (!Logger.shouldLog(level)) {
       return;
@@ -239,7 +239,7 @@ export class Logger {
       text,
       spinner: spinnerType,
       color: "blue",
-    }).start();
+    } as Parameters<typeof ora>[0]).start();
 
     Logger.activeSpinners.set(id, spinner);
   }
@@ -308,17 +308,17 @@ export class Logger {
   /**
    * Get spinner type for ora
    */
-  private static getSpinnerType(type: ProgressType): any {
+  private static getSpinnerType(type: ProgressType): ProgressType {
     switch (type) {
       case ProgressType.DOTS:
-        return "dots";
+        return ProgressType.DOTS;
       case ProgressType.LINE:
-        return "line";
+        return ProgressType.LINE;
       case ProgressType.ARROW:
-        return "arrow";
+        return ProgressType.ARROW;
       case ProgressType.SPINNER:
       default:
-        return "dots";
+        return ProgressType.DOTS;
     }
   }
 

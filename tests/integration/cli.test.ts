@@ -80,7 +80,7 @@ async function cleanupTestFile(filePath: string): Promise<void> {
   try {
     const dir = path.dirname(filePath);
     await fs.remove(dir);
-  } catch (error) {
+  } catch {
     // Ignore cleanup errors
   }
 }

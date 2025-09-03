@@ -5,7 +5,7 @@
  */
 
 import { ErrorType, CLIError } from "../types";
-import { ErrorHandler } from "../utils/errors";
+import { ErrorHandler, ExtendedCLIError } from "../utils/errors";
 import { Logger } from "../utils/logger";
 
 /**
@@ -66,7 +66,7 @@ export abstract class BaseCommand {
     message: string,
     details?: string,
     suggestions?: string[],
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): CLIError {
     return ErrorHandler.createError(
       type,
@@ -80,7 +80,7 @@ export abstract class BaseCommand {
   /**
    * Handle and display errors using the centralized error handler
    */
-  protected handleError(error: any): void {
+  protected handleError(error: ExtendedCLIError): void {
     ErrorHandler.displayError(
       ErrorHandler.createError(
         error.type || ErrorType.VALIDATION_ERROR,
@@ -123,5 +123,5 @@ export abstract class BaseCommand {
   /**
    * Abstract method that must be implemented by subclasses
    */
-  abstract execute(...args: any[]): Promise<void>;
+  abstract execute(...args: unknown[]): Promise<void>;
 }

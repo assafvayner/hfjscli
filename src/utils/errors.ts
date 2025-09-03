@@ -3,6 +3,7 @@
  *
  * Provides standardized error handling, categorization, and user-friendly messaging
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import chalk from "chalk";
 import { ErrorType, CLIError } from "../types";

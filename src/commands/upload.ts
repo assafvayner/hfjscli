@@ -5,7 +5,13 @@
  */
 
 import { Command } from "commander";
-import { UploadOptions, RepoType, ErrorType, HFClientWrapper } from "../types";
+import {
+  UploadOptions,
+  RepoType,
+  ErrorType,
+  HFClientWrapper,
+  UploadResult,
+} from "../types";
 import { authManager } from "../auth/manager";
 import { createHFClient } from "../client/hf-client";
 import { FileSystemUtils } from "../utils/files";
@@ -13,6 +19,13 @@ import { BaseCommand } from "./base";
 import { Logger } from "../utils/logger";
 import { StatusMessages } from "../utils/progress";
 import { ErrorHandler } from "../utils/errors";
+
+interface UploadCommandOptions {
+  token?: string;
+  message?: string;
+  repoType: string;
+  verbose: boolean;
+}
 
 /**
  * Upload command implementation
@@ -42,7 +55,7 @@ export class UploadCommand extends BaseCommand {
         "model"
       )
       .option("-v, --verbose", "Enable verbose logging", false)
-      .action(async (repoId: string, filePath: string, options: any) => {
+      .action(async (repoId: string, filePath: string, options) => {
         const uploadCommand = new UploadCommand();
         try {
           await uploadCommand.execute(repoId, filePath, options);
@@ -56,7 +69,11 @@ export class UploadCommand extends BaseCommand {
   /**
    * Execute the upload command
    */
-  async execute(repoId: string, filePath: string, options: any): Promise<void> {
+  async execute(
+    repoId: string,
+    filePath: string,
+    options: UploadCommandOptions
+  ): Promise<void> {
     // Set verbose mode (inherits from global if not specified)
     const verbose = options.verbose || Logger.isVerbose();
     this.setVerbose(verbose);
@@ -83,7 +100,7 @@ export class UploadCommand extends BaseCommand {
   private async prepareUploadOptions(
     repoId: string,
     filePath: string,
-    options: any
+    options: UploadCommandOptions
   ): Promise<UploadOptions> {
     this.logVerbose("Preparing upload options...");
 
@@ -116,9 +133,8 @@ export class UploadCommand extends BaseCommand {
 
     // Resolve and validate file path
     const resolvedFilePath = FileSystemUtils.resolvePath(filePath);
-    const fileValidation = await FileSystemUtils.validateFilePath(
-      resolvedFilePath
-    );
+    const fileValidation =
+      await FileSystemUtils.validateFilePath(resolvedFilePath);
 
     if (!fileValidation.valid) {
       throw this.createError(
@@ -138,7 +154,7 @@ export class UploadCommand extends BaseCommand {
     }
 
     // Validate authentication (upload requires authentication)
-    token = await authManager.validateAuthentication(true);
+    token = (await authManager.validateAuthentication(true)) || undefined;
     if (!token) {
       throw this.createError(
         ErrorType.AUTHENTICATION_ERROR,
@@ -239,7 +255,10 @@ export class UploadCommand extends BaseCommand {
   /**
    * Display success message after successful upload
    */
-  private displaySuccessMessage(result: any, options: UploadOptions): void {
+  private displaySuccessMessage(
+    result: UploadResult,
+    options: UploadOptions
+  ): void {
     const fileName = FileSystemUtils.getFileName(options.filePath);
 
     const details: Record<string, string> = {

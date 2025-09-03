@@ -11,6 +11,7 @@ import {
   RepoType,
   ErrorType,
   HFClientWrapper,
+  DownloadResult,
 } from "../types";
 import { authManager } from "../auth/manager";
 import { createHFClient } from "../client/hf-client";
@@ -19,6 +20,13 @@ import { BaseCommand } from "./base";
 import { Logger } from "../utils/logger";
 import { StatusMessages } from "../utils/progress";
 import { ErrorHandler } from "../utils/errors";
+
+interface DownloadCommandOptions {
+  verbose: boolean;
+  token?: string;
+  localDir?: string;
+  repoType: string;
+}
 
 /**
  * Download command implementation
@@ -51,7 +59,7 @@ export class DownloadCommand extends BaseCommand {
         "model"
       )
       .option("-v, --verbose", "Enable verbose logging", false)
-      .action(async (repoId: string, filePath: string, options: any) => {
+      .action(async (repoId, filePath, options) => {
         const downloadCommand = new DownloadCommand();
         try {
           await downloadCommand.execute(repoId, filePath, options);
@@ -65,7 +73,11 @@ export class DownloadCommand extends BaseCommand {
   /**
    * Execute the download command
    */
-  async execute(repoId: string, filePath: string, options: any): Promise<void> {
+  async execute(
+    repoId: string,
+    filePath: string,
+    options: DownloadCommandOptions
+  ): Promise<void> {
     // Set verbose mode (inherits from global if not specified)
     const verbose = options.verbose;
     this.setVerbose(verbose);
@@ -92,7 +104,7 @@ export class DownloadCommand extends BaseCommand {
   private async prepareDownloadOptions(
     repoId: string,
     filePath: string,
-    options: any
+    options: DownloadCommandOptions
   ): Promise<DownloadOptions> {
     this.logVerbose("Preparing download options...");
 
@@ -133,9 +145,8 @@ export class DownloadCommand extends BaseCommand {
       localDir = FileSystemUtils.resolvePath(localDir);
 
       // Check if local directory exists or can be created
-      const dirValidation = await FileSystemUtils.validateDirectoryPath(
-        localDir
-      );
+      const dirValidation =
+        await FileSystemUtils.validateDirectoryPath(localDir);
       if (!dirValidation.valid) {
         throw this.createError(
           ErrorType.PERMISSION_ERROR,
@@ -155,21 +166,24 @@ export class DownloadCommand extends BaseCommand {
     }
 
     // Get token if available (but don't require it for public repos)
-    token = authManager.getToken();
+    token = token || authManager.getToken() || undefined;
 
     this.logVerbose(`Repository: ${repoId}`);
     this.logVerbose(`File: ${filePath}`);
     this.logVerbose(`Local Directory: ${localDir}`);
     this.logVerbose(`Repository Type: ${repoType}`);
 
-    return {
+    const downloadOptions: DownloadOptions = {
       repoId,
       filePath,
       localDir,
-      token: token || undefined,
       repoType,
       verbose: this.verbose,
     };
+    if (token) {
+      downloadOptions.token = token;
+    }
+    return downloadOptions;
   }
 
   /**
@@ -263,7 +277,10 @@ export class DownloadCommand extends BaseCommand {
   /**
    * Display success message after successful download
    */
-  private displaySuccessMessage(result: any, options: DownloadOptions): void {
+  private displaySuccessMessage(
+    result: DownloadResult,
+    options: DownloadOptions
+  ): void {
     const fileName = path.basename(options.filePath);
 
     const details: Record<string, string> = {

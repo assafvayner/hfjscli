@@ -282,7 +282,7 @@ describe("Error Handling Integration Tests", () => {
       // Try to make it read-only (may not work on all systems)
       try {
         await fs.chmod(readOnlyDir, 0o444);
-      } catch (error) {
+      } catch {
         // Skip test if we can't create read-only directory
         return;
       }

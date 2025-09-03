@@ -48,6 +48,7 @@ export class AuthManager implements IAuthManager {
       await whoAmI({ credentials: { accessToken: token } });
       return true;
     } catch (error) {
+      console.error(error);
       return false;
     }
   }

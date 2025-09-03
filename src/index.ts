@@ -130,7 +130,7 @@ For more information, visit: https://huggingface.co/docs
       // Parse and execute commands
       await this.program.parseAsync(argv);
     } catch (error) {
-      this.handleGlobalError(error);
+      this.handleGlobalError(error as Error);
       this.exitWithCode(1);
     }
   }
@@ -178,6 +178,7 @@ For more information, visit: https://huggingface.co/docs
   /**
    * Handle global errors that aren't caught by individual commands
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handleGlobalError(error: any): void {
     // Use centralized error handler for consistent error formatting
     if (this.isCliError(error)) {
@@ -202,6 +203,7 @@ For more information, visit: https://huggingface.co/docs
   /**
    * Check if an error is a CLI error
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private isCliError(error: any): boolean {
     return (
       error &&

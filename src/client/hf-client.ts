@@ -25,6 +25,9 @@ import * as path from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { authManager } from "../auth/manager";
+import { Blob } from "node:buffer";
+import { ReadableStream } from "node:stream/web";
+import { Response } from "undici-types";
 
 /**
  * Configuration for retry logic
@@ -81,7 +84,7 @@ export class HFClient implements HFClientWrapper {
       // Perform upload with retry logic
       const result = await this.withRetry(async () => {
         const token = options.token || this.accessToken;
-        const uploadOptions: any = {
+        const uploadOptions: Parameters<typeof hfUploadFile>[0] = {
           repo: options.repoId,
           file: {
             path: path.basename(options.filePath),
@@ -93,7 +96,7 @@ export class HFClient implements HFClientWrapper {
         };
 
         if (token) {
-          uploadOptions.credentials = { accessToken: token };
+          uploadOptions.accessToken = token;
         }
 
         return await hfUploadFile(uploadOptions);
@@ -110,7 +113,7 @@ export class HFClient implements HFClientWrapper {
       console.error(error);
       return {
         success: false,
-        error: this.handleError(error).message,
+        error: this.handleError(error as Error).message,
       };
     }
   }
@@ -133,14 +136,14 @@ export class HFClient implements HFClientWrapper {
       // Perform download with retry logic
       const response = await this.withRetry(async () => {
         const token = options.token || this.accessToken;
-        const downloadOptions: any = {
+        const downloadOptions: Parameters<typeof hfDownloadFile>[0] = {
           repo: options.repoId,
           path: options.filePath,
           xet: true,
         };
 
         if (token) {
-          downloadOptions.credentials = { accessToken: token };
+          downloadOptions.accessToken = token;
         }
 
         return await hfDownloadFile(downloadOptions);
@@ -161,7 +164,7 @@ export class HFClient implements HFClientWrapper {
     } catch (error) {
       return {
         success: false,
-        error: this.handleError(error).message,
+        error: this.handleError(error as Error).message,
       };
     }
   }
@@ -181,7 +184,10 @@ export class HFClient implements HFClientWrapper {
           highWaterMark: 8 * 1024 * 1024, // 8MiB chunks
         });
 
-        readStream.on("data", (chunk: any) => {
+        readStream.on("data", (chunk: Buffer | string) => {
+          if (typeof chunk === "string") {
+            chunk = Buffer.from(chunk, "utf8");
+          }
           controller.enqueue(new Uint8Array(chunk));
         });
 
@@ -240,7 +246,7 @@ export class HFClient implements HFClientWrapper {
       // Clean up partial file on error
       try {
         await fs.unlink(localPath);
-      } catch (unlinkError) {
+      } catch {
         // Ignore cleanup errors
       }
       throw error;
@@ -257,9 +263,11 @@ export class HFClient implements HFClientWrapper {
     try {
       // Try to list files to check if repository exists and is accessible
       await this.withRetry(async () => {
-        const listOptions: any = { repo: { name: repoId, type: repoType } };
+        const listOptions: Parameters<typeof listFiles>[0] = {
+          repo: { name: repoId, type: repoType },
+        };
         if (this.accessToken) {
-          listOptions.credentials = { accessToken: this.accessToken };
+          listOptions.accessToken = this.accessToken;
         }
         const files = listFiles(listOptions);
         // Just get the first file to test access
@@ -268,7 +276,7 @@ export class HFClient implements HFClientWrapper {
       });
 
       return true;
-    } catch (error) {
+    } catch {
       // Repository doesn't exist or is not accessible
       return false;
     }
@@ -354,7 +362,7 @@ export class HFClient implements HFClientWrapper {
         lastError = error as Error;
 
         // Don't retry on certain error types
-        if (this.shouldNotRetry(error)) {
+        if (this.shouldNotRetry(lastError)) {
           throw error;
         }
 
@@ -382,7 +390,7 @@ export class HFClient implements HFClientWrapper {
   /**
    * Determine if an error should not be retried
    */
-  private shouldNotRetry(error: any): boolean {
+  private shouldNotRetry(error: Error): boolean {
     // Don't retry authentication errors
     if (error.message?.includes("401") || error.message?.includes("403")) {
       return true;
@@ -411,7 +419,7 @@ export class HFClient implements HFClientWrapper {
   /**
    * Handle and categorize errors
    */
-  private handleError(error: any): CLIError {
+  private handleError(error: Error): CLIError {
     if (error instanceof Error && "type" in error) {
       return error as CLIError;
     }
@@ -471,11 +479,12 @@ export class HFClient implements HFClientWrapper {
     message: string,
     suggestion?: string
   ): CLIError {
-    const error = new Error(message) as any;
-    error.type = type;
-    error.message = message;
-    error.suggestions = suggestion ? [suggestion] : [];
-    return error;
+    const error = new Error(message);
+    return {
+      type,
+      suggestions: suggestion ? [suggestion] : [],
+      ...error,
+    };
   }
 }
 

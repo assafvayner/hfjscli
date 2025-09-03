@@ -5,7 +5,7 @@
  */
 
 import chalk from "chalk";
-import { Logger } from "./logger";
+import { Logger, ProgressType } from "./logger";
 
 // Re-export ProgressType for convenience
 export { ProgressType } from "./logger";
@@ -46,7 +46,7 @@ export class ProgressIndicator {
    */
   start(): void {
     const message = `${this.operation} ${this.fileName}...`;
-    Logger.startProgress(this.id, message, "spinner" as any);
+    Logger.startProgress(this.id, message, ProgressType.SPINNER);
   }
 
   /**
@@ -248,7 +248,7 @@ export class StatusMessages {
   /**
    * Display configuration summary
    */
-  static configSummary(config: Record<string, any>): void {
+  static configSummary(config: Record<string, unknown>): void {
     if (!Logger.isVerbose()) {
       return;
     }
