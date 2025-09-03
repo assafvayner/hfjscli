@@ -50,4 +50,4 @@ jobs:
             release-assets/hfjscli-linux
             release-assets/hfjscli-windows.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_CI_TOKEN }}
