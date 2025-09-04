@@ -39,6 +39,7 @@ describe("DownloadCommand", () => {
     mockHFClient = {
       downloadFile: jest.fn(),
       uploadFile: jest.fn(),
+      uploadFiles: jest.fn(),
       validateRepository: jest.fn(),
     };
 

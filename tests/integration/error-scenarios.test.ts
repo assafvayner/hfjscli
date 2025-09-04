@@ -8,6 +8,7 @@ import { DownloadCommand } from "../../src/commands/download";
 import {
   HFClientWrapper,
   UploadResult,
+  MultiUploadResult,
   DownloadResult,
   ErrorType,
 } from "../../src/types";
@@ -79,6 +80,74 @@ class ErrorSimulatingHFClient implements HFClientWrapper {
         return {
           success: true,
           fileUrl: "https://huggingface.co/test/repo/blob/main/test.txt",
+          commitSha: "abc123",
+        };
+    }
+  }
+
+  async uploadFiles(): Promise<MultiUploadResult> {
+    switch (this.errorScenario) {
+      case "network_timeout":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: "Network timeout after 30 seconds",
+        };
+      case "rate_limit":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: "429 Rate limit exceeded. Too many requests.",
+        };
+      case "auth_error":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: "401 Unauthorized. Invalid or expired token.",
+        };
+      case "file_too_large":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: "413 File too large. Maximum size is 50MB.",
+        };
+      case "repo_not_found":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: "404 Repository not found or access denied.",
+        };
+      case "server_error":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: "500 Internal server error. Please try again later.",
+        };
+      case "custom":
+        return {
+          success: false,
+          filesUploaded: 0,
+          totalFiles: 1,
+          error: this.customError,
+        };
+      case "success":
+        return {
+          success: true,
+          filesUploaded: 1,
+          totalFiles: 1,
+          commitSha: "abc123",
+        };
+      default:
+        return {
+          success: true,
+          filesUploaded: 1,
+          totalFiles: 1,
           commitSha: "abc123",
         };
     }
@@ -256,7 +325,7 @@ describe("Error Handling Integration Tests", () => {
         })
       ).rejects.toMatchObject({
         type: ErrorType.FILE_NOT_FOUND,
-        message: expect.stringContaining("File does not exist"),
+        message: expect.stringContaining("No files matched the pattern"),
       });
     });
 
@@ -442,7 +511,7 @@ describe("Error Handling Integration Tests", () => {
         })
       ).rejects.toMatchObject({
         type: ErrorType.VALIDATION_ERROR,
-        message: expect.stringContaining("File path is required"),
+        message: expect.stringContaining("Unsafe file pattern"),
       });
     });
 
@@ -536,7 +605,7 @@ describe("Error Handling Integration Tests", () => {
         })
       ).rejects.toMatchObject({
         type: ErrorType.FILE_NOT_FOUND,
-        message: expect.stringContaining("File does not exist"),
+        message: expect.stringContaining("No files matched the pattern"),
       });
     });
 

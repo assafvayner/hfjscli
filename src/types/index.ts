@@ -40,6 +40,12 @@ export interface UploadOptions extends BaseCommandOptions {
   message?: string;
 }
 
+export interface MultiUploadOptions extends BaseCommandOptions {
+  repoId: string;
+  filePaths: string[];
+  message?: string;
+}
+
 export interface DownloadOptions extends BaseCommandOptions {
   repoId: string;
   filePath: string;
@@ -52,6 +58,15 @@ export interface UploadResult {
   fileUrl?: string;
   commitSha?: string;
   error?: string;
+}
+
+export interface MultiUploadResult {
+  success: boolean;
+  filesUploaded: number;
+  totalFiles: number;
+  commitSha?: string;
+  error?: string;
+  failedFiles?: string[];
 }
 
 export interface DownloadResult {
@@ -79,6 +94,7 @@ export interface CLIConfig {
 // Hugging Face client wrapper interface
 export interface HFClientWrapper {
   uploadFile(options: UploadOptions): Promise<UploadResult>;
+  uploadFiles(options: MultiUploadOptions): Promise<MultiUploadResult>;
   downloadFile(options: DownloadOptions): Promise<DownloadResult>;
   validateRepository(repoId: string, repoType: RepoType): Promise<boolean>;
 }

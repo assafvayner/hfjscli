@@ -7,14 +7,17 @@
 
 import {
   uploadFile as hfUploadFile,
+  uploadFiles as hfUploadFiles,
   downloadFile as hfDownloadFile,
   listFiles,
 } from "@huggingface/hub";
 import {
   HFClientWrapper,
   UploadOptions,
+  MultiUploadOptions,
   DownloadOptions,
   UploadResult,
+  MultiUploadResult,
   DownloadResult,
   RepoType,
   ErrorType,
@@ -114,6 +117,106 @@ export class HFClient implements HFClientWrapper {
       return {
         success: false,
         error: this.handleError(error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Upload multiple files to Hugging Face Hub
+   */
+  async uploadFiles(options: MultiUploadOptions): Promise<MultiUploadResult> {
+    try {
+      // Validate inputs
+      await this.validateMultiUploadInputs(options);
+
+      let filesProcessed = 0;
+      const failedFiles: string[] = [];
+      let commitSha = "unknown";
+
+      // Split files into batches of 1000 (HF API limit)
+      const batchSize = 1000;
+      const totalFiles = options.filePaths.length;
+      const totalBatches = Math.ceil(totalFiles / batchSize);
+
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const startIndex = batchIndex * batchSize;
+        const endIndex = Math.min(startIndex + batchSize, totalFiles);
+        const batchFiles = options.filePaths.slice(startIndex, endIndex);
+
+        try {
+          // Prepare files for this batch
+          const files = await Promise.all(
+            batchFiles.map(async (filePath) => {
+              // Check if file exists
+              if (!(await fs.pathExists(filePath))) {
+                failedFiles.push(filePath);
+                return null;
+              }
+
+              // Create streaming blob for this file
+              const streamingBlob =
+                await this.createStreamingFileBlob(filePath);
+
+              return {
+                path: path.basename(filePath),
+                content: streamingBlob,
+              };
+            })
+          );
+
+          // Filter out failed files
+          const validFiles = files.filter(
+            (file): file is { path: string; content: Blob } => file !== null
+          );
+
+          if (validFiles.length === 0) {
+            continue; // Skip this batch if no valid files
+          }
+
+          // Perform batch upload with retry logic
+          const result = await this.withRetry(async () => {
+            const token = options.token || this.accessToken;
+            const uploadOptions: Parameters<typeof hfUploadFiles>[0] = {
+              repo: options.repoId,
+              files: validFiles,
+              commitTitle:
+                options.message ||
+                `Upload batch ${batchIndex + 1}/${totalBatches} (${validFiles.length} files)`,
+              useXet: true,
+            };
+
+            if (token) {
+              uploadOptions.accessToken = token;
+            }
+
+            return await hfUploadFiles(uploadOptions);
+          });
+
+          commitSha = result.commit?.oid || commitSha;
+          filesProcessed += validFiles.length;
+        } catch (error) {
+          // Mark all files in this batch as failed
+          failedFiles.push(...batchFiles);
+          console.error(`Batch ${batchIndex + 1} failed:`, error);
+        }
+      }
+
+      const success = filesProcessed > 0;
+      return {
+        success,
+        filesUploaded: filesProcessed,
+        totalFiles,
+        ...(success && commitSha !== "unknown" ? { commitSha } : {}),
+        ...(failedFiles.length > 0 ? { failedFiles } : {}),
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        success: false,
+        filesUploaded: 0,
+        totalFiles: options.filePaths.length,
+        error: this.handleError(error as Error).message,
+        failedFiles: options.filePaths,
       };
     }
   }
@@ -300,6 +403,48 @@ export class HFClient implements HFClientWrapper {
         "File path is required",
         "Please provide a valid file path to upload"
       );
+    }
+
+    if (!this.isValidRepoType(options.repoType)) {
+      throw this.createError(
+        ErrorType.VALIDATION_ERROR,
+        `Invalid repository type: ${options.repoType}`,
+        "Repository type must be one of: model, dataset, space"
+      );
+    }
+  }
+
+  /**
+   * Validate multi-upload inputs
+   */
+  private async validateMultiUploadInputs(
+    options: MultiUploadOptions
+  ): Promise<void> {
+    if (!options.repoId || options.repoId.trim() === "") {
+      throw this.createError(
+        ErrorType.VALIDATION_ERROR,
+        "Repository ID is required",
+        'Please provide a valid repository ID in the format "username/repo-name"'
+      );
+    }
+
+    if (!options.filePaths || options.filePaths.length === 0) {
+      throw this.createError(
+        ErrorType.VALIDATION_ERROR,
+        "At least one file path is required",
+        "Please provide valid file paths to upload"
+      );
+    }
+
+    // Validate each file path is not empty
+    for (const filePath of options.filePaths) {
+      if (!filePath || filePath.trim() === "") {
+        throw this.createError(
+          ErrorType.VALIDATION_ERROR,
+          "File path cannot be empty",
+          "Please provide valid file paths to upload"
+        );
+      }
     }
 
     if (!this.isValidRepoType(options.repoType)) {

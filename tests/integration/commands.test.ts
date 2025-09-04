@@ -8,6 +8,7 @@ import { DownloadCommand } from "../../src/commands/download";
 import {
   HFClientWrapper,
   UploadResult,
+  MultiUploadResult,
   DownloadResult,
   ErrorType,
 } from "../../src/types";
@@ -37,6 +38,24 @@ class MockHFClient implements HFClientWrapper {
     } else {
       return {
         success: false,
+        error: this.errorMessage,
+      };
+    }
+  }
+
+  async uploadFiles(): Promise<MultiUploadResult> {
+    if (this.shouldSucceed) {
+      return {
+        success: true,
+        filesUploaded: 1,
+        totalFiles: 1,
+        commitSha: "abc123def456",
+      };
+    } else {
+      return {
+        success: false,
+        filesUploaded: 0,
+        totalFiles: 1,
         error: this.errorMessage,
       };
     }
@@ -225,7 +244,7 @@ describe("Command Handlers Integration Tests", () => {
           })
         ).rejects.toMatchObject({
           type: ErrorType.VALIDATION_ERROR,
-          message: expect.stringContaining("File path is required"),
+          message: expect.stringContaining("Unsafe file pattern"),
         });
       });
 

@@ -5,12 +5,14 @@
 import { UploadCommand } from "../../src/commands/upload";
 import { authManager } from "../../src/auth/manager";
 import { FileSystemUtils } from "../../src/utils/files";
+import { PatternResolver } from "../../src/utils/pattern-resolver";
 import { HFClientWrapper, ErrorType } from "../../src/types";
 import { Logger } from "../../src/utils/logger";
 
 // Mock dependencies
 jest.mock("../../src/auth/manager");
 jest.mock("../../src/utils/files");
+jest.mock("../../src/utils/pattern-resolver");
 jest.mock("fs-extra");
 jest.mock("ora", () => {
   return jest.fn(() => ({
@@ -33,6 +35,7 @@ describe("UploadCommand", () => {
   let mockHFClient: jest.Mocked<HFClientWrapper>;
   let mockAuthManager: jest.Mocked<typeof authManager>;
   let mockFileSystemUtils: jest.Mocked<typeof FileSystemUtils>;
+  let mockPatternResolver: jest.Mocked<typeof PatternResolver>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -41,6 +44,7 @@ describe("UploadCommand", () => {
     // Create mock HF client
     mockHFClient = {
       uploadFile: jest.fn(),
+      uploadFiles: jest.fn(),
       downloadFile: jest.fn(),
       validateRepository: jest.fn(),
     };
@@ -58,6 +62,15 @@ describe("UploadCommand", () => {
     mockFileSystemUtils.validateFilePath = jest.fn();
     mockFileSystemUtils.getFileName = jest.fn();
     mockFileSystemUtils.getHumanReadableFileSize = jest.fn();
+    mockFileSystemUtils.formatBytes = jest.fn();
+
+    // Setup pattern resolver mock
+    mockPatternResolver = PatternResolver as jest.Mocked<
+      typeof PatternResolver
+    >;
+    mockPatternResolver.isValidPattern = jest.fn().mockReturnValue(true);
+    mockPatternResolver.resolvePattern = jest.fn();
+    mockPatternResolver.getSummary = jest.fn().mockReturnValue("1 file (1 MB)");
 
     // Create upload command with mocked client
     uploadCommand = new UploadCommand(mockHFClient);
@@ -88,12 +101,26 @@ describe("UploadCommand", () => {
       mockFileSystemUtils.validateFilePath.mockResolvedValue({ valid: true });
       mockFileSystemUtils.getFileName.mockReturnValue("file.txt");
       mockFileSystemUtils.getHumanReadableFileSize.mockResolvedValue("1.5 MB");
+      mockFileSystemUtils.formatBytes.mockReturnValue("1.5 MB");
       mockAuthManager.validateAuthentication.mockResolvedValue("test-token");
       mockHFClient.validateRepository.mockResolvedValue(true);
       mockHFClient.uploadFile.mockResolvedValue({
         success: true,
         fileUrl: "https://huggingface.co/username/repo-name/blob/main/file.txt",
         commitSha: "abc123",
+      });
+
+      // Setup default pattern resolver mock for single file
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864, // 1.5 MB
+        files: [
+          {
+            path: "/resolved/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
       });
     });
 
@@ -183,7 +210,25 @@ describe("UploadCommand", () => {
   });
 
   describe("validation errors", () => {
+    beforeEach(() => {
+      // Reset pattern resolver for validation tests
+      mockPatternResolver.resolvePattern.mockReset();
+    });
+
     it("should fail with empty repository ID", async () => {
+      // Mock pattern resolution to succeed so we can test repo validation
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
+      });
+
       let err: any = null;
       try {
         await uploadCommand.execute("", "/path/to/file.txt", {});
@@ -196,6 +241,19 @@ describe("UploadCommand", () => {
     });
 
     it("should fail with invalid repository ID format", async () => {
+      // Mock pattern resolution to succeed so we can test repo validation
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
+      });
+
       let err: any = null;
       try {
         await uploadCommand.execute("invalid-repo-id", "/path/to/file.txt", {});
@@ -208,6 +266,9 @@ describe("UploadCommand", () => {
     });
 
     it("should fail with empty file path", async () => {
+      // Mock pattern resolver to reject empty pattern
+      mockPatternResolver.isValidPattern.mockReturnValue(false);
+
       let err: any = null;
       try {
         await uploadCommand.execute("username/repo", "", {});
@@ -216,16 +277,15 @@ describe("UploadCommand", () => {
       }
 
       expect(err).not.toBeNull();
-      expect(err.message).toContain("File path is required");
+      expect(err.message).toContain("Unsafe file pattern");
     });
 
     it("should fail when file does not exist", async () => {
-      mockFileSystemUtils.resolvePath.mockReturnValue(
-        "/resolved/path/to/file.txt"
-      );
-      mockFileSystemUtils.validateFilePath.mockResolvedValue({
-        valid: false,
-        error: "File does not exist: /resolved/path/to/file.txt",
+      // Mock pattern resolver to return no files
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 0,
+        totalSize: 0,
+        files: [],
       });
 
       let err: any = null;
@@ -236,16 +296,27 @@ describe("UploadCommand", () => {
       }
 
       expect(err).not.toBeNull();
-      expect(err.message).toContain(
-        "File does not exist: /resolved/path/to/file.txt"
-      );
+      expect(err.message).toContain("No files matched the pattern");
     });
 
     it("should fail with invalid repository type", async () => {
-      mockFileSystemUtils.resolvePath.mockReturnValue(
-        "/resolved/path/to/file.txt"
-      );
+      // Mock pattern resolution to succeed so we can test repo type validation
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
+      });
+
+      // Ensure FileSystemUtils mocks are set up for single file path
+      mockFileSystemUtils.resolvePath.mockReturnValue("/path/to/file.txt");
       mockFileSystemUtils.validateFilePath.mockResolvedValue({ valid: true });
+      mockFileSystemUtils.getFileName.mockReturnValue("file.txt");
 
       let err: any = null;
       try {
@@ -267,6 +338,19 @@ describe("UploadCommand", () => {
         "/resolved/path/to/file.txt"
       );
       mockFileSystemUtils.validateFilePath.mockResolvedValue({ valid: true });
+
+      // Mock pattern resolution to succeed so we can test auth errors
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
+      });
     });
 
     it("should fail when no authentication token is provided", async () => {
@@ -317,6 +401,19 @@ describe("UploadCommand", () => {
       mockFileSystemUtils.getFileName.mockReturnValue("file.txt");
       mockFileSystemUtils.getHumanReadableFileSize.mockResolvedValue("1.5 MB");
       mockAuthManager.validateAuthentication.mockResolvedValue("test-token");
+
+      // Mock pattern resolution to succeed so we can test repo validation errors
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
+      });
     });
 
     it("should fail when repository does not exist or is not accessible", async () => {
@@ -350,6 +447,19 @@ describe("UploadCommand", () => {
       mockFileSystemUtils.getHumanReadableFileSize.mockResolvedValue("1.5 MB");
       mockAuthManager.validateAuthentication.mockResolvedValue("test-token");
       mockHFClient.validateRepository.mockResolvedValue(true);
+
+      // Mock pattern resolution to succeed so we can test upload errors
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
+      });
     });
 
     it("should fail when upload operation fails", async () => {
@@ -404,6 +514,19 @@ describe("UploadCommand", () => {
         success: true,
         fileUrl: "https://huggingface.co/username/repo/blob/main/file.txt",
         commitSha: "abc123",
+      });
+
+      // Mock pattern resolution to succeed so we can test verbose mode
+      mockPatternResolver.resolvePattern.mockResolvedValue({
+        totalFiles: 1,
+        totalSize: 1572864,
+        files: [
+          {
+            path: "/path/to/file.txt",
+            size: 1572864,
+            fileName: "file.txt",
+          },
+        ],
       });
     });
 
@@ -471,11 +594,36 @@ describe("UploadCommand", () => {
           mockHFClient.validateRepository.mockResolvedValue(true);
           mockHFClient.uploadFile.mockResolvedValue({ success: true });
 
+          // Mock pattern resolution to succeed for valid repo IDs
+          mockPatternResolver.resolvePattern.mockResolvedValue({
+            totalFiles: 1,
+            totalSize: 1572864,
+            files: [
+              {
+                path: "/path/to/file.txt",
+                size: 1572864,
+                fileName: "file.txt",
+              },
+            ],
+          });
+
           await uploadCommand.execute(repoId, "/path/to/file.txt", {
             token: "test-token",
           });
           expect(mockProcessExit).not.toHaveBeenCalled();
         } else {
+          // Mock pattern resolution to succeed so we can test repo ID validation
+          mockPatternResolver.resolvePattern.mockResolvedValue({
+            totalFiles: 1,
+            totalSize: 1572864,
+            files: [
+              {
+                path: "/path/to/file.txt",
+                size: 1572864,
+                fileName: "file.txt",
+              },
+            ],
+          });
           let err: any = null;
           try {
             await uploadCommand.execute(repoId, "/path/to/file.txt", {});

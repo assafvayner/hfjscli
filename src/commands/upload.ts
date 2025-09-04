@@ -7,14 +7,17 @@
 import { Command } from "commander";
 import {
   UploadOptions,
+  MultiUploadOptions,
   RepoType,
   ErrorType,
   HFClientWrapper,
   UploadResult,
+  MultiUploadResult,
 } from "../types";
 import { authManager } from "../auth/manager";
 import { createHFClient } from "../client/hf-client";
 import { FileSystemUtils } from "../utils/files";
+import { PatternResolution, PatternResolver } from "../utils/pattern-resolver";
 import { BaseCommand } from "./base";
 import { Logger } from "../utils/logger";
 import { StatusMessages } from "../utils/progress";
@@ -44,9 +47,14 @@ export class UploadCommand extends BaseCommand {
   static configure(program: Command): Command {
     return program
       .command("upload")
-      .description("Upload a file to Hugging Face Hub")
+      .description(
+        "Upload file(s) to Hugging Face Hub using file paths or glob patterns"
+      )
       .argument("<repo-id>", "Repository ID (e.g., username/repo-name)")
-      .argument("<file-path>", "Path to the file to upload")
+      .argument(
+        "<file-pattern>",
+        "File path or glob pattern (e.g., './models/*.bin', 'data.txt')"
+      )
       .option("-t, --token <token>", "Hugging Face access token")
       .option("-m, --message <message>", "Commit message for the upload")
       .option(
@@ -55,10 +63,10 @@ export class UploadCommand extends BaseCommand {
         "model"
       )
       .option("-v, --verbose", "Enable verbose logging", false)
-      .action(async (repoId: string, filePath: string, options) => {
+      .action(async (repoId: string, filePattern: string, options) => {
         const uploadCommand = new UploadCommand();
         try {
-          await uploadCommand.execute(repoId, filePath, options);
+          await uploadCommand.execute(repoId, filePattern, options);
         } catch (error) {
           // Let the global error handler manage the error and exit
           ErrorHandler.handleError(error, 1);
@@ -71,7 +79,7 @@ export class UploadCommand extends BaseCommand {
    */
   async execute(
     repoId: string,
-    filePath: string,
+    filePattern: string,
     options: UploadCommandOptions
   ): Promise<void> {
     // Set verbose mode (inherits from global if not specified)
@@ -83,15 +91,36 @@ export class UploadCommand extends BaseCommand {
       authManager.setToken(options.token);
     }
 
-    // Validate and prepare upload options
-    const uploadOptions = await this.prepareUploadOptions(
-      repoId,
-      filePath,
-      options
-    );
+    // Resolve pattern to files
+    const patternResult = await this.resolveFilePattern(filePattern);
 
-    // Perform the upload
-    await this.performUpload(uploadOptions);
+    if (patternResult.totalFiles === 0) {
+      throw this.createError(
+        ErrorType.FILE_NOT_FOUND,
+        `No files matched the pattern: ${filePattern}`,
+        "Please check your file path or glob pattern and ensure the files exist"
+      );
+    }
+
+    // Prepare and perform upload(s)
+    if (patternResult.totalFiles === 1) {
+      // Single file upload - use existing logic for better error messages
+      const singleFile = patternResult.files[0];
+      const uploadOptions = await this.prepareUploadOptions(
+        repoId,
+        singleFile.path,
+        options
+      );
+      await this.performUpload(uploadOptions);
+    } else {
+      // Multiple files upload - use batch logic
+      const multiUploadOptions = await this.prepareMultiUploadOptions(
+        repoId,
+        patternResult.files.map((f) => f.path),
+        options
+      );
+      await this.performMultiUpload(multiUploadOptions, patternResult);
+    }
   }
 
   /**
@@ -280,6 +309,216 @@ export class UploadCommand extends BaseCommand {
     }
 
     StatusMessages.success("Upload", details);
+  }
+
+  /**
+   * Resolve file pattern to actual files
+   */
+  private async resolveFilePattern(filePattern: string) {
+    this.logVerbose(`Resolving pattern: ${filePattern}`);
+
+    // Validate pattern safety
+    if (!PatternResolver.isValidPattern(filePattern)) {
+      throw this.createError(
+        ErrorType.VALIDATION_ERROR,
+        `Unsafe file pattern: ${filePattern}`,
+        "File patterns cannot access system directories or use dangerous traversal patterns"
+      );
+    }
+
+    try {
+      const result = await PatternResolver.resolvePattern(filePattern, {
+        cwd: process.cwd(),
+        maxFiles: 10000, // Hard limit to prevent overwhelming the system
+      });
+
+      this.logVerbose(
+        `Pattern resolved: ${PatternResolver.getSummary(result)}`
+      );
+      return result;
+    } catch (error) {
+      throw this.createError(
+        ErrorType.FILE_NOT_FOUND,
+        error instanceof Error
+          ? error.message
+          : "Failed to resolve file pattern",
+        "Please check your file path or glob pattern"
+      );
+    }
+  }
+
+  /**
+   * Prepare and validate multi-upload options
+   */
+  private async prepareMultiUploadOptions(
+    repoId: string,
+    filePaths: string[],
+    options: UploadCommandOptions
+  ): Promise<MultiUploadOptions> {
+    this.logVerbose("Preparing multi-upload options...");
+
+    // Validate repository ID
+    if (!repoId || repoId.trim() === "") {
+      throw this.createError(
+        ErrorType.VALIDATION_ERROR,
+        "Repository ID is required",
+        'Please provide a valid repository ID in the format "username/repo-name"'
+      );
+    }
+
+    // Validate repository ID format
+    if (!this.isValidRepoId(repoId)) {
+      throw this.createError(
+        ErrorType.VALIDATION_ERROR,
+        `Invalid repository ID format: ${repoId}`,
+        'Repository ID should be in the format "username/repo-name"'
+      );
+    }
+
+    // Validate repository type
+    const repoType = this.validateRepoType(options.repoType);
+
+    // Handle authentication
+    let token = options.token;
+    if (token) {
+      authManager.setToken(token);
+    }
+
+    // Validate authentication (upload requires authentication)
+    token = (await authManager.validateAuthentication(true)) || undefined;
+    if (!token) {
+      throw this.createError(
+        ErrorType.AUTHENTICATION_ERROR,
+        "Authentication failed",
+        "Please check your authentication credentials"
+      );
+    }
+
+    // Generate commit message if not provided
+    const commitMessage = options.message || `Upload ${filePaths.length} files`;
+
+    this.logVerbose(`Repository: ${repoId}`);
+    this.logVerbose(`Files: ${filePaths.length}`);
+    this.logVerbose(`Repository Type: ${repoType}`);
+    this.logVerbose(`Commit Message: ${commitMessage}`);
+
+    return {
+      repoId,
+      filePaths,
+      token,
+      message: commitMessage,
+      repoType,
+      verbose: this.verbose,
+    };
+  }
+
+  /**
+   * Perform multi-file upload operation
+   */
+  private async performMultiUpload(
+    options: MultiUploadOptions,
+    patternResult: PatternResolution
+  ): Promise<void> {
+    const totalFiles = options.filePaths.length;
+    const totalSize = FileSystemUtils.formatBytes(patternResult.totalSize);
+
+    // Log file operations
+    console.log(
+      `Uploading ${totalFiles} files (${totalSize} total) to ${options.repoId}`
+    );
+
+    // Start progress indicator
+    const progressId = "multi-upload-operation";
+    Logger.startProgress(progressId, "Preparing multi-file upload...");
+
+    try {
+      // Validate repository exists and is accessible
+      Logger.updateProgress(progressId, "Validating repository...");
+      StatusMessages.validatingRepository(options.repoId, options.repoType);
+
+      const isValidRepo = await this.hfClient.validateRepository(
+        options.repoId,
+        options.repoType
+      );
+
+      Logger.logRepoValidation(options.repoId, options.repoType, isValidRepo);
+
+      if (!isValidRepo) {
+        Logger.failProgress(progressId);
+        throw ErrorHandler.createError(
+          ErrorType.VALIDATION_ERROR,
+          `Repository not found or not accessible: ${options.repoId}`,
+          "Please check the repository ID and ensure you have access to it",
+          ErrorHandler.createContextualSuggestions(ErrorType.VALIDATION_ERROR, {
+            repoId: options.repoId,
+            operation: "upload",
+          }),
+          { repoId: options.repoId, repoType: options.repoType }
+        );
+      }
+
+      // Perform multi-upload
+      Logger.updateProgress(progressId, `Uploading ${totalFiles} files...`);
+      this.logVerbose("Starting multi-file upload...");
+
+      const result = await this.hfClient.uploadFiles(options);
+
+      if (result.success) {
+        Logger.succeedProgress(
+          progressId,
+          `Upload completed: ${result.filesUploaded}/${result.totalFiles} files uploaded`
+        );
+        this.displayMultiUploadSuccessMessage(result, options, patternResult);
+      } else {
+        Logger.failProgress(progressId);
+        throw ErrorHandler.createError(
+          ErrorType.NETWORK_ERROR,
+          result.error || "Multi-upload failed",
+          "Please check your internet connection and try again",
+          ErrorHandler.createContextualSuggestions(ErrorType.NETWORK_ERROR, {
+            operation: "upload",
+            repoId: options.repoId,
+          }),
+          { repoId: options.repoId, totalFiles }
+        );
+      }
+    } catch (error) {
+      Logger.failProgress(progressId);
+      throw error;
+    }
+  }
+
+  /**
+   * Display success message after successful multi-upload
+   */
+  private displayMultiUploadSuccessMessage(
+    result: MultiUploadResult,
+    options: MultiUploadOptions,
+    patternResult: PatternResolution
+  ): void {
+    const details: Record<string, string> = {
+      Files: `${result.filesUploaded}/${result.totalFiles}`,
+      Repository: options.repoId,
+      Type: options.repoType,
+      Size: FileSystemUtils.formatBytes(patternResult.totalSize),
+    };
+
+    if (result.commitSha && this.verbose) {
+      details["Commit"] = result.commitSha;
+    }
+
+    if (options.message) {
+      details["Message"] = options.message;
+    }
+
+    if (result.failedFiles && result.failedFiles.length > 0) {
+      details["Failed"] = `${result.failedFiles.length} files failed`;
+      if (this.verbose) {
+        this.logVerbose(`Failed files: ${result.failedFiles.join(", ")}`);
+      }
+    }
+
+    StatusMessages.success("Multi-Upload", details);
   }
 
   /**

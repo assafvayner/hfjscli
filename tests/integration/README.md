@@ -22,7 +22,7 @@ This document summarizes the comprehensive integration test coverage for the hfj
 **Requirements Validated**:
 
 - ✅ Requirement 4.1: Display comprehensive help
-- ✅ Requirement 4.2: Display upload command help  
+- ✅ Requirement 4.2: Display upload command help
 - ✅ Requirement 4.3: Display download command help
 - ✅ Requirement 4.4: Display helpful error for invalid arguments
 - ✅ Requirement 4.5: Display version information
@@ -154,40 +154,40 @@ This document summarizes the comprehensive integration test coverage for the hfj
 
 ## Requirements Traceability Matrix
 
-| Requirement | Test File | Test Category | Status |
-|-------------|-----------|---------------|---------|
-| 1.1 Upload file to repository | commands.test.ts | Upload Integration | ✅ |
-| 1.2 Use authentication credentials | commands.test.ts, auth-integration.test.ts | Auth Integration | ✅ |
-| 1.3 Display confirmation on success | commands.test.ts | Upload Scenarios | ✅ |
-| 1.4 Display error on failure | commands.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 1.5 Use custom commit message | commands.test.ts | Upload Scenarios | ✅ |
-| 1.6 Handle non-existent repository | commands.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 2.1 Download file from repository | commands.test.ts | Download Integration | ✅ |
-| 2.2 Save to specified location | commands.test.ts | Download Scenarios | ✅ |
-| 2.3 Save to current directory by default | commands.test.ts | Download Scenarios | ✅ |
-| 2.4 Display confirmation on success | commands.test.ts | Download Scenarios | ✅ |
-| 2.5 Display error on failure | commands.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 2.6 Handle file not found | commands.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 3.1 Use token from --token flag | auth-integration.test.ts, cli.test.ts | Auth Integration | ✅ |
-| 3.2 Use token from environment | auth-integration.test.ts, cli.test.ts | Auth Integration | ✅ |
-| 3.3 Allow read operations without auth | auth-integration.test.ts, commands.test.ts | Auth Integration | ✅ |
-| 3.4 Display clear error for invalid credentials | auth-integration.test.ts, cli.test.ts | Auth Errors | ✅ |
-| 3.5 Display access denied for private repos | auth-integration.test.ts, error-scenarios.test.ts | Auth Errors | ✅ |
-| 4.1 Display comprehensive help | cli.test.ts | Help and Version | ✅ |
-| 4.2 Display upload command help | cli.test.ts | Command Help | ✅ |
-| 4.3 Display download command help | cli.test.ts | Command Help | ✅ |
-| 4.4 Display helpful error for invalid arguments | cli.test.ts | Error Handling | ✅ |
-| 4.5 Display version information | cli.test.ts | Help and Version | ✅ |
-| 5.1 Handle model repository type | cli.test.ts, commands.test.ts | Repository Types | ✅ |
-| 5.2 Handle dataset repository type | cli.test.ts, commands.test.ts | Repository Types | ✅ |
-| 5.3 Default to model repository type | cli.test.ts, commands.test.ts | Repository Types | ✅ |
-| 5.4 Display error for invalid repo type | cli.test.ts, error-scenarios.test.ts | Repository Types | ✅ |
-| 5.5 Complete operations with correct repo type | cli.test.ts, commands.test.ts | Repository Types | ✅ |
-| 6.1 Display user-friendly network errors | error-handling.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 6.2 Display file system errors with paths | error-handling.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 6.3 Display rate limit messages | error-handling.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
-| 6.4 Enable verbose logging | error-handling.test.ts, cli.test.ts | Verbose Mode | ✅ |
-| 6.5 Suggest troubleshooting steps | error-handling.test.ts, error-scenarios.test.ts | Error Handling | ✅ |
+| Requirement                                     | Test File                                         | Test Category        | Status |
+| ----------------------------------------------- | ------------------------------------------------- | -------------------- | ------ |
+| 1.1 Upload file to repository                   | commands.test.ts                                  | Upload Integration   | ✅     |
+| 1.2 Use authentication credentials              | commands.test.ts, auth-integration.test.ts        | Auth Integration     | ✅     |
+| 1.3 Display confirmation on success             | commands.test.ts                                  | Upload Scenarios     | ✅     |
+| 1.4 Display error on failure                    | commands.test.ts, error-scenarios.test.ts         | Error Handling       | ✅     |
+| 1.5 Use custom commit message                   | commands.test.ts                                  | Upload Scenarios     | ✅     |
+| 1.6 Handle non-existent repository              | commands.test.ts, error-scenarios.test.ts         | Error Handling       | ✅     |
+| 2.1 Download file from repository               | commands.test.ts                                  | Download Integration | ✅     |
+| 2.2 Save to specified location                  | commands.test.ts                                  | Download Scenarios   | ✅     |
+| 2.3 Save to current directory by default        | commands.test.ts                                  | Download Scenarios   | ✅     |
+| 2.4 Display confirmation on success             | commands.test.ts                                  | Download Scenarios   | ✅     |
+| 2.5 Display error on failure                    | commands.test.ts, error-scenarios.test.ts         | Error Handling       | ✅     |
+| 2.6 Handle file not found                       | commands.test.ts, error-scenarios.test.ts         | Error Handling       | ✅     |
+| 3.1 Use token from --token flag                 | auth-integration.test.ts, cli.test.ts             | Auth Integration     | ✅     |
+| 3.2 Use token from environment                  | auth-integration.test.ts, cli.test.ts             | Auth Integration     | ✅     |
+| 3.3 Allow read operations without auth          | auth-integration.test.ts, commands.test.ts        | Auth Integration     | ✅     |
+| 3.4 Display clear error for invalid credentials | auth-integration.test.ts, cli.test.ts             | Auth Errors          | ✅     |
+| 3.5 Display access denied for private repos     | auth-integration.test.ts, error-scenarios.test.ts | Auth Errors          | ✅     |
+| 4.1 Display comprehensive help                  | cli.test.ts                                       | Help and Version     | ✅     |
+| 4.2 Display upload command help                 | cli.test.ts                                       | Command Help         | ✅     |
+| 4.3 Display download command help               | cli.test.ts                                       | Command Help         | ✅     |
+| 4.4 Display helpful error for invalid arguments | cli.test.ts                                       | Error Handling       | ✅     |
+| 4.5 Display version information                 | cli.test.ts                                       | Help and Version     | ✅     |
+| 5.1 Handle model repository type                | cli.test.ts, commands.test.ts                     | Repository Types     | ✅     |
+| 5.2 Handle dataset repository type              | cli.test.ts, commands.test.ts                     | Repository Types     | ✅     |
+| 5.3 Default to model repository type            | cli.test.ts, commands.test.ts                     | Repository Types     | ✅     |
+| 5.4 Display error for invalid repo type         | cli.test.ts, error-scenarios.test.ts              | Repository Types     | ✅     |
+| 5.5 Complete operations with correct repo type  | cli.test.ts, commands.test.ts                     | Repository Types     | ✅     |
+| 6.1 Display user-friendly network errors        | error-handling.test.ts, error-scenarios.test.ts   | Error Handling       | ✅     |
+| 6.2 Display file system errors with paths       | error-handling.test.ts, error-scenarios.test.ts   | Error Handling       | ✅     |
+| 6.3 Display rate limit messages                 | error-handling.test.ts, error-scenarios.test.ts   | Error Handling       | ✅     |
+| 6.4 Enable verbose logging                      | error-handling.test.ts, cli.test.ts               | Verbose Mode         | ✅     |
+| 6.5 Suggest troubleshooting steps               | error-handling.test.ts, error-scenarios.test.ts   | Error Handling       | ✅     |
 
 ## Conclusion
 

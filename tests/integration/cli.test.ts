@@ -120,9 +120,11 @@ describe("CLI Entry Point - Comprehensive Integration Tests", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("Usage: hfjscli upload");
-      expect(result.stdout).toContain("Upload a file to Hugging Face Hub");
+      expect(result.stdout).toContain(
+        "Upload file(s) to Hugging Face Hub using file paths or glob patterns"
+      );
       expect(result.stdout).toContain("repo-id");
-      expect(result.stdout).toContain("file-path");
+      expect(result.stdout).toContain("file-pattern");
       expect(result.stdout).toContain("--token");
       expect(result.stdout).toContain("--message");
       expect(result.stdout).toContain("--repo-type");
@@ -164,7 +166,9 @@ describe("CLI Entry Point - Comprehensive Integration Tests", () => {
       const result = await runCLI(["upload", "test/repo"]);
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("missing required argument 'file-path'");
+      expect(result.stderr).toContain(
+        "missing required argument 'file-pattern'"
+      );
     });
   });
 
@@ -222,7 +226,7 @@ describe("CLI Entry Point - Comprehensive Integration Tests", () => {
       ]);
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("File does not exist");
+      expect(result.stderr).toContain("No files matched the pattern");
       expect(result.stderr).toContain("nonexistent-file.txt");
     });
 
@@ -476,7 +480,7 @@ describe("CLI Entry Point - Comprehensive Integration Tests", () => {
       const result = await runCLI(["upload", "test/repo", "nonexistent.txt"]);
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("File does not exist");
+      expect(result.stderr).toContain("No files matched the pattern");
       expect(result.stderr).toContain("check");
     });
 
